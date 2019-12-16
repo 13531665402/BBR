@@ -196,11 +196,12 @@ fn main(){
         let mut BtlBw_max = 0;
         let mut RTprop_min = 1024;
 
-//        let mut last_ack_time : collections::BTreeMap<i32, i32> = collections::BTreeMap::new();
+        //let mut last_ack_time : collections::BTreeMap<i32, i32> = collections::BTreeMap::new();
         let mut sendTime = HashMap::new();
         let mut delivered_num = HashMap::new();
         let mut inflight_num = 0;
 
+        //use in startup_state
         let mut rtt_round = 0;
         let mut rtt_round_seq_num = seqNum;
         let mut last_round_bw = 0;
@@ -274,6 +275,8 @@ fn main(){
                 let (amt, src) = clientSocket.recv_from(&mut RecvBuf).unwrap();
                 let (protocol, port1, port2, ackCount, ackFlag) = unpackACK(&RecvBuf);
                 if protocol == tcpProtocol{
+
+                    //calculate cur_bw and cur_rtt
                     let mut cur_time = SystemTime::now();
                     let mut cur_rtt = cur_time - Duration::new(sendTime.get(&ackCount), 0);
                     let mut inflight_margin = inflight_num - delivered_num.get(&ackCount);
@@ -282,6 +285,8 @@ fn main(){
                     if cur_bw > BtlBw_max{
                         BtlBw_max = cur_bw;
                     }
+
+                    //go to Probe_RTT state?
                     rtt_modify_delta = SystemTime::now() - rtt_modify_time;
                     if rtt_modify_delta > 10{
                         rtt_modify_delta = 0;
@@ -294,6 +299,8 @@ fn main(){
                         rtt_modify_time = SystemTime::now();
                         RTprop_min = cur_rtt;
                     }
+
+                    //modify page_rate and cwnd
                     let mut pace_rate = 0.0;
                     let mut cur_bdp = BtlBw_max * RTprop_min;
                     match state {
@@ -352,6 +359,7 @@ fn main(){
 
                         3 => {
                             cwnd = 4;
+                            //Probe_RTT lasts for 200 ms
                             if SystemTime::now() - rtt_modify_time > 200{
                                 state = 0;
                             }
